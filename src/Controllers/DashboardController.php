@@ -7,6 +7,10 @@ use App\Services\DeviceStateService;
 
 class DashboardController {
     public function index() {
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
         $parser = new DBParser();
         $definer = new Definer();
         $deviceStateService = new DeviceStateService();
@@ -14,6 +18,7 @@ class DashboardController {
         $deviceCards = $parser->generateCards();
         $fields = $definer->getFields();
         $initialDoorState = (int) $deviceStateService->getDoorState();
+        $doorStatus = $initialDoorState;
 
         require __DIR__ . '/../../views/Dashboard.php';
     }
@@ -26,6 +31,7 @@ class DashboardController {
         $parser = new DBParser();
         $definer = new Definer();
         $deviceCards = $parser->generateCards();
+        $doorStatus = isset($_GET['door_status']) ? (int) $_GET['door_status'] : null;
 
         require __DIR__ . '/../../views/DashboardCards.php';
     }
