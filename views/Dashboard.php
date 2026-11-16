@@ -20,16 +20,6 @@
 </head>
 <body class="min-h-screen text-white">
 <div class="body_wrapper">
-    <div class="main_navigation">
-        <section style="padding: 1rem 1.5rem 1rem 1.5rem;  align-items: center;">
-                <div class="container">
-                     <!-- Header -->
-                     <div class="flex flex-col mb-10">
-                     </div><img src="/img/GildeLogoDatacenter.svg" width="250px" class="mb-7">
-                     <div class="flex-1 ml-6 border-t border-gray-500"></div>
-                </div>
-            </section>
-    </div>
     <div class="main_wrapper">
         <section class="px-2 py-4 sm:px-4 lg:px-6">
             <div class="container mx-auto w-full max-w-[1240px]">
