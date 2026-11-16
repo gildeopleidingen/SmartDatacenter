@@ -9,6 +9,8 @@ $customerVisibleFields = [
     'deursensor-003' => ['DOOR_OPEN_STATUS', 'DOOR_OPEN_TIMES', 'LAST_DOOR_OPEN_DURATION'],
 ];
 
+$logoCardRendered = false;
+
 foreach ($deviceCards as $card):
     [$borderColor, $statusLabel] = $definer->status_color_and_label($card->status);
     $doorState = $card->DOOR_OPEN_STATUS ?? null;
@@ -30,7 +32,6 @@ foreach ($deviceCards as $card):
     }
     $visibleFields = $customerVisibleFields[strtolower((string) $card->device_id)] ?? [];
     ?>
-
     <div class="flex min-w-0 flex-col justify-between items-center rounded-xl border-2 overflow-hidden p-5 h-full" style="border-color: <?= $borderColor ?>">
         <div class="<?= in_array($card->sensorType, ['soundLevelSensor', 'doorSensor', 'indoorAmbienceMonitoringSensor'], true) ? 'w-32' : 'w-11' ?> block max-w-full h-auto">
             <?= $definer->getDeviceIcon($card->sensorType, $card->status, isset($card->DOOR_OPEN_STATUS) ? $card->DOOR_OPEN_STATUS : null, isset($card->motion) ? $card->motion : null, isset($card->state) ? $card->state : null, isset($card->la) ? $card->la : null) ?? "<img src='/img/sensors/default/GildeDataCenterIconGood.svg' width=\"64\" class=\"block max-w-full h-auto ml-auto\">" ?>
@@ -62,4 +63,16 @@ foreach ($deviceCards as $card):
         </ul>
         <div class="text-right text-gray-400 text-sm mt-4"></div>
     </div>
+    <?php if (strtolower((string) $card->device_id) === 'deursensor-003'): ?>
+        <div class="flex min-w-0 flex-col items-center justify-center rounded-xl border-2 border-gray-500 overflow-hidden p-5 h-full">
+            <img src="/img/GildeLogoDatacenter.svg" alt="Gilde Opleidingen Datacenter" class="block w-full max-w-[250px] h-auto">
+        </div>
+        <?php $logoCardRendered = true; ?>
+    <?php endif; ?>
 <?php endforeach; ?>
+
+<?php if (!$logoCardRendered): ?>
+    <div class="flex min-w-0 flex-col items-center justify-center rounded-xl border-2 border-gray-500 overflow-hidden p-5 h-full">
+        <img src="/img/GildeLogoDatacenter.svg" alt="Gilde Opleidingen Datacenter" class="block w-full max-w-[250px] h-auto">
+    </div>
+<?php endif; ?>
