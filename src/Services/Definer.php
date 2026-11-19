@@ -3,6 +3,7 @@ namespace App\Services;
 
 use PDO;
 use PDOException;
+use App\Enums\Color;
 use App\Database\DBConn;
 
 class Definer{
@@ -68,9 +69,9 @@ class Definer{
 
     public function status_color_and_label($logStatus) {
         switch (strtolower($logStatus)) {
-            case 'warning': return ['#ff2b2b', 'Warning'];
-            case 'error': return ['#ffd300', 'Error'];
-            default: return ['#22c55e', 'Operational'];
+            case 'warning': return [Color::Red->value, 'Warning'];
+            case 'error': return [Color::Yellow->value, 'Error'];
+            default: return [Color::Green->value, 'Operational'];
         }
     }
 

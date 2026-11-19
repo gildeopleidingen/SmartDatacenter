@@ -19,34 +19,36 @@ class DoorSensor extends Sensor
 
     public $MOD;
 
-    public static function getLatestActivity() {
+    public static function getLatestActivities(): array {
         $db = DBConn::getInstance();
-        
-        $sql = "SELECT * FROM activity WHERE device_ID = 5 ORDER BY dateTime DESC LIMIT 1;";
-        
-        $stmt = $db->prepare($sql);
 
+        $sql = "
+            SELECT a.data
+            FROM device d
+            JOIN activity a ON a.device_ID = d.ID
+            WHERE LOWER(d.deviceID) LIKE 'deursensor-%'
+              AND a.ID = (
+                  SELECT latest.ID
+                  FROM activity latest
+                  WHERE latest.device_ID = d.ID
+                  ORDER BY latest.dateTime DESC, latest.ID DESC
+                  LIMIT 1
+              )
+        ";
+
+        $stmt = $db->prepare($sql);
         $stmt->execute();
 
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-        public function getDoorState() {
-            $latestActivity = DoorSensor::getLatestActivity();
-            $data = json_decode($latestActivity['data'], true);
-        
-            echo "Door payload: ";
-            print_r($data);
-            echo PHP_EOL;
-        
-            $status = $data['DOOR_OPEN_STATUS'] ?? 'missing';
-            echo "DOOR_OPEN_STATUS = " . $status . PHP_EOL;
-        
-            if ($status == 0) {
-                echo "Door is CLOSED" . PHP_EOL;
-                return 0;
+    public function getDoorState() {
+        foreach (self::getLatestActivities() as $activity) {
+            $data = json_decode($activity['data'], true);
+            if (is_array($data) && isset($data['DOOR_OPEN_STATUS']) && (int) $data['DOOR_OPEN_STATUS'] !== 0) {
+                return 1;
             }
-        
-            echo "Door is OPEN" . PHP_EOL;
-            
         }
+
+        return 0;
     }
+}
