@@ -3,65 +3,28 @@
 <head>
     <title>Dashboard</title>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background: #001; }
+        .body_wrapper {
+            width: min(100%, 1240px);
+            min-height: 100vh;
+            margin: 0 auto;
+            padding: 1rem;
+            box-sizing: border-box;
+        }
         .card-dot { width: 12px; height: 12px; border-radius: 9999px; background: #1E40AF; border: 3px solid white; }
     </style>
     <link rel="icon" href="/img/favicon.svg" sizes="any" type="image/svg+xml">
 </head>
-<body class="text-white p-10">
+<body class="min-h-screen text-white">
 <div class="body_wrapper">
-    <div class="main_navigation">
-        <section style="padding: 1rem 1.5rem 1rem 1.5rem;  align-items: center;">
-                <div class="container">
-                     <!-- Header -->
-                     <div class="flex flex-col mb-10">
-                     </div><img src="/img/GildeLogoDatacenter.svg" width="250px" class="mb-7">
-                     <div class="flex-1 ml-6 border-t border-gray-500"></div>
-                </div>
-            </section>
-    </div>
     <div class="main_wrapper">
-        <section style="padding: 120px; align-items: center;">
-            <div class="container max-w-screen-xl">
-              <!--  <div class="grid grid-cols-8 md:grid-cols-2 gap-10 max-w-fit"> -->
-                <div class="inline-grid max-lg:grid-cols-3 lg:grid-cols-4 md:grid-cols-2 gap-10">
-                    <?php
-                    foreach ($deviceCards as $card):
-                        [$borderColor, $statusLabel] = $definer->status_color_and_label($card->status);  /* Will implement status later */
-                        ?>
-                        <div class="flex flex-col justify-between items-center rounded-xl border-2 overflow-hidden p-8 h-full" style="border-color: <?= $borderColor ?>"> <!-- card -->
-                                <!-- <div class="text-right">
-                                    div class="font-semibold"><//?= $statusLabel ?></div
-                                </div> -->
-                            <div class="w-11 block h-auto">
-                                <?php
-                                //echo $card->DOOR_OPEN_STATUS;
-                                echo $deviceIcon = $definer->getDeviceIcon($card->sensorType, $card->status, isset($card->DOOR_OPEN_STATUS) ? $card->DOOR_OPEN_STATUS : null, isset($card->motion) ? $card->motion : null, isset($card->state) ? $card->state : null) ?? "<img src='/img/sensors/default/GildeDataCenterIconGood.svg' width=\"64px\" class=\"ml-auto\">";
-                                ?>
-                            </div>
-                            <div class="flex-grow"></div>
-                            <ul class="flex flex-col items-center justify-center bg-[#001] overflow-hidden w-full"> <!-- card-inner -->
-
-                                    <p class="text-lg font-semibold"><?= htmlspecialchars($card->device_id) ?></p>
-                                    <?php foreach ($card as $key => $value):
-                                        if ($key === "device_id" || $key === "sensorType" || $key === "button" || $key === "MOD" || $key === "temperature" || $key === "humi" || $key === "status") continue;
-                                        ?>
-                                        <li class="grid grid-cols-2 gap-1 w-full">
-                                            <span class="text-gray-300 text-right break-all text-xs"><?= $definer->getLabels($key) ?></span>
-                                            <span class="font-medium break-all  text-xs">= <?= htmlspecialchars($value) ?></span>
-                                        </li>
-                                    <?php endforeach; ?>
-                                </ul>
-
-                            <!-- Updated -->
-                            <div class="text-right text-gray-400 text-sm mt-4">
-                                <!--?= //$define->format_updated($card["last_update"]) ?-->
-                            </div>
-
-                        </div>
-                    <?php endforeach; ?>
+        <section class="px-2 py-4 sm:px-4 lg:px-6">
+            <div class="container mx-auto w-full max-w-[1240px]">
+                <div id="dashboard-data" class="grid w-full grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                    <?php require __DIR__ . '/DashboardCards.php'; ?>
                 </div>
 
             </div>
@@ -69,5 +32,181 @@
     </div>
     <div class="main_footer"></div>
 </div>
+
+<script>
+let doorStatus = null;
+const initialDoorState = <?= (int) $initialDoorState ?>;
+let timeoutId = null;
+let alarmActive = false;
+let dashboardRefreshInProgress = false;
+const doorOpenSince = new Map();
+const doorColors = <?= json_encode([
+  'closed' => \App\Enums\Color::Green->value,
+  'open' => \App\Enums\Color::Orange->value,
+  'openTooLong' => \App\Enums\Color::Red->value,
+], JSON_THROW_ON_ERROR) ?>;
+
+function updateDoorCards() {
+  document.querySelectorAll('[data-door-card]').forEach(card => {
+    const deviceId = card.dataset.deviceId;
+    const rawState = card.dataset.doorState;
+    const sensorState = Number(rawState);
+
+    if (!deviceId || !['0', '1', '2'].includes(rawState)) {
+      return;
+    }
+
+    let displayState = sensorState;
+    if (sensorState === 0) {
+      doorOpenSince.delete(deviceId);
+    } else if (sensorState === 1) {
+      if (!doorOpenSince.has(deviceId)) {
+        doorOpenSince.set(deviceId, Date.now());
+      }
+      if (Date.now() - doorOpenSince.get(deviceId) >= 10000) {
+        displayState = 2;
+      }
+    }
+
+    const statusColor = displayState === 0 ? doorColors.closed : (displayState === 1 ? doorColors.open : doorColors.openTooLong);
+    const iconFile = displayState === 0 ? 'DoorSensor.svg' : (displayState === 1 ? 'DoorSensorAjar.svg' : 'DoorSensorOpen.svg');
+    const statusLabel = { 0: 'Dicht', 1: 'Open', 2: 'Te lang open' }[displayState];
+
+    card.style.borderColor = statusColor;
+    const iconImg = card.querySelector('img[src*="/doorSensor/"]');
+    if (iconImg) {
+      iconImg.src = `/img/sensors/doorSensor/${iconFile}`;
+    }
+    const statusValue = card.querySelector('[data-door-state-val]');
+    if (statusValue) {
+      statusValue.textContent = `= ${statusLabel}`;
+    }
+  });
+}
+
+async function pushDoorAlarmState(state) {
+  try {
+    await fetch('/api/door-alarm', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ door_status: state })
+    });
+  } catch (error) {
+    console.error('Failed to push door alarm state:', error);
+  }
+}
+
+function Alarm() {
+  if (doorStatus === 1) {
+    doorStatus = 2;
+    alarmActive = true;
+    console.log('Alarm triggered');
+    pushDoorAlarmState(2);
+    return true;
+  }
+
+  return false;
+}
+
+function startAlarmTimer() {
+  clearTimeout(timeoutId);
+  timeoutId = setTimeout(() => {
+    Alarm();
+  }, 10000);
+  console.log('Alarm timer started (10s)');
+}
+
+function TimerStop() {
+  clearTimeout(timeoutId);
+  timeoutId = null;
+  alarmActive = false;
+  console.log('Alarm timer stopped');
+}
+
+function setDoorStatus(newStatus) {
+  const nextStatus = Number(newStatus);
+
+  if (nextStatus === 0) {
+    if (doorStatus === 0) {
+      return;
+    }
+    doorStatus = 0;
+    TimerStop();
+    pushDoorAlarmState(0);
+    return;
+  }
+
+  if (nextStatus === 1) {
+    if (doorStatus === 2) {
+      return;
+    }
+
+    if (doorStatus !== 1) {
+      doorStatus = 1;
+      startAlarmTimer();
+      pushDoorAlarmState(1);
+    }
+    return;
+  }
+
+  if (nextStatus === 2) {
+    doorStatus = 2;
+    alarmActive = true;
+  }
+}
+
+async function refreshDoorState() {
+  try {
+    const response = await fetch(`/api/door-state?_=${Date.now()}`, { cache: 'no-store' });
+    const data = await response.json();
+    const nextStatus = Number(data.door_status);
+
+    if (nextStatus === 0) {
+      if (doorStatus !== 0) {
+        setDoorStatus(0);
+      }
+      return;
+    }
+
+    if (nextStatus === 1) {
+      if (doorStatus !== 1 && doorStatus !== 2) {
+        setDoorStatus(1);
+      }
+      return;
+    }
+  } catch (error) {
+    console.error('Failed to fetch door state:', error);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  setDoorStatus(initialDoorState);
+  updateDoorCards();
+  setInterval(refreshDoorState, 2000);
+  setInterval(refreshDashboardData, 2000);
+});
+
+async function refreshDashboardData() {
+  if (dashboardRefreshInProgress) {
+    return;
+  }
+
+  dashboardRefreshInProgress = true;
+  try {
+    const response = await fetch(`/dashboard/data?_=${Date.now()}`, { cache: 'no-store' });
+    if (!response.ok) {
+      throw new Error(`Dashboard refresh failed with status ${response.status}`);
+    }
+    document.getElementById('dashboard-data').innerHTML = await response.text();
+    updateDoorCards();
+  } catch (error) {
+    console.error('Failed to refresh dashboard data:', error);
+  } finally {
+    dashboardRefreshInProgress = false;
+  }
+}
+</script>
 </body>
 </html>

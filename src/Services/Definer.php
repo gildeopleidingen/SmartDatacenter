@@ -3,6 +3,7 @@ namespace App\Services;
 
 use PDO;
 use PDOException;
+use App\Enums\Color;
 use App\Database\DBConn;
 
 class Definer{
@@ -34,6 +35,10 @@ class Definer{
             'Ext' => 'External Sensor',
             'Systimestamp' => 'System Timestamp',
 
+            'la' => 'Huidig (dB)',
+            'lamax' => 'Hoogste (dB)',
+            'co2' => 'CO2 (ppm)',
+            'humidity' => 'Humidity (%)',
             'motion' => 'Motion',
             'battery_volt' => 'Battery Voltage (V)',
             'tamper' => 'Tamper',
@@ -54,17 +59,33 @@ class Definer{
     }
 
     public function door_state_label($v) {
-        if ($v == 1) return "Open";
-        if ($v == 0) return "Closed";
-        return "Unknown";
+        return match ((string) $v) {
+            '0' => 'Dicht',
+            '1' => 'Open',
+            '2' => 'Te lang open',
+            default => 'Unknown',
+        };
     }
 
     public function status_color_and_label($logStatus) {
         switch (strtolower($logStatus)) {
-            case 'warning': return ['#ff2b2b', 'Warning'];
-            case 'error': return ['#ffd300', 'Error'];
-            default: return ['#22c55e', 'Operational'];
+            case 'warning': return [Color::Red->value, 'Warning'];
+            case 'error': return [Color::Yellow->value, 'Error'];
+            default: return [Color::Green->value, 'Operational'];
         }
+    }
+
+    public function getDisplayName($deviceId) {
+        $aliases = [
+            'deursensor-002' => 'Voordeur',
+            'deursensor-003' => 'Achterdeur',
+            'temphumidity-001' => 'Temperatuur',
+            'soundlevelsensor-001' => 'Geluid-level',
+            'motion-001' => 'Beweging',
+        ];
+
+        $normalizedId = strtolower((string) $deviceId);
+        return $aliases[$normalizedId] ?? $deviceId;
     }
 
     public function format_updated($ts) {
@@ -127,7 +148,27 @@ class Definer{
         return $log->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function getDeviceIcon($sensorType, $status, $doorState, $motion, $powerState){
+    public function getDeviceIcon($sensorType, $status, $doorState, $motion, $powerState, $soundLevel = null){
+
+        if ($sensorType === 'soundLevelSensor') {
+            $soundLevelIcon = is_numeric($soundLevel) && (float) $soundLevel >= 80
+                ? 'SoundLevelSensorHigh.svg'
+                : 'SoundLevelSensor.svg';
+            return '<img src="/img/sensors/soundLevelSensor/' . $soundLevelIcon . '" width="128" class="block max-w-full h-auto ml-auto">';
+        }
+
+        if ($sensorType === 'indoorAmbienceMonitoringSensor') {
+            return '<img src="/img/sensors/indoorAmbienceMonitoringSensor/IndoorAmbienceMonitoringSensor.png" width="128" class="block max-w-full h-auto mx-auto">';
+        }
+
+        if ($sensorType === 'doorSensor') {
+            $doorIcon = match ((int) $doorState) {
+                0 => 'DoorSensor.svg',
+                1 => 'DoorSensorAjar.svg',
+                default => 'DoorSensorOpen.svg',
+            };
+            return '<img src="/img/sensors/doorSensor/' . $doorIcon . '" width="128" class="block max-w-full h-auto ml-auto">';
+        }
 
         if (in_array($status, ['Warning', 'Error'])) {
             $stateName = $status;
@@ -151,7 +192,7 @@ class Definer{
             $path = "/img/sensors/default/GildeDataCenterIconGood.svg";
         }
         
-        return "<img src=\"$path\" width=\"64px\" class=\"ml-auto\">";
+        return "<img src=\"$path\" width=\"64\" class=\"block max-w-full h-auto ml-auto\">";
     }
 }
 
