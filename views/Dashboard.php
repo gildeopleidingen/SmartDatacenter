@@ -39,28 +39,48 @@ const initialDoorState = <?= (int) $initialDoorState ?>;
 let timeoutId = null;
 let alarmActive = false;
 let dashboardRefreshInProgress = false;
+const doorOpenSince = new Map();
+const doorColors = <?= json_encode([
+  'closed' => \App\Enums\Color::Green->value,
+  'open' => \App\Enums\Color::Orange->value,
+  'openTooLong' => \App\Enums\Color::Red->value,
+], JSON_THROW_ON_ERROR) ?>;
 
-function updateDoorUi(status) {
-  const statusNum = Number(status);
-  const statusColor = statusNum === 0 ? '#22c55e' : (statusNum === 1 ? '#ff8800' : '#ff2b2b');
-  const iconFile = statusNum === 0 ? 'DoorSensor.svg' : (statusNum === 1 ? 'DoorSensorAjar.svg' : 'DoorSensorOpen.svg');
-  const labelMap = {
-    0: 'Dicht',
-    1: 'Open',
-    2: 'Te lang open'
-  };
-  const statusLabel = labelMap[statusNum] ?? statusNum;
-
+function updateDoorCards() {
   document.querySelectorAll('[data-door-card]').forEach(card => {
+    const deviceId = card.dataset.deviceId;
+    const rawState = card.dataset.doorState;
+    const sensorState = Number(rawState);
+
+    if (!deviceId || !['0', '1', '2'].includes(rawState)) {
+      return;
+    }
+
+    let displayState = sensorState;
+    if (sensorState === 0) {
+      doorOpenSince.delete(deviceId);
+    } else if (sensorState === 1) {
+      if (!doorOpenSince.has(deviceId)) {
+        doorOpenSince.set(deviceId, Date.now());
+      }
+      if (Date.now() - doorOpenSince.get(deviceId) >= 10000) {
+        displayState = 2;
+      }
+    }
+
+    const statusColor = displayState === 0 ? doorColors.closed : (displayState === 1 ? doorColors.open : doorColors.openTooLong);
+    const iconFile = displayState === 0 ? 'DoorSensor.svg' : (displayState === 1 ? 'DoorSensorAjar.svg' : 'DoorSensorOpen.svg');
+    const statusLabel = { 0: 'Dicht', 1: 'Open', 2: 'Te lang open' }[displayState];
+
     card.style.borderColor = statusColor;
-    const iconImg = card.querySelector('img[src*="doorSensor"]');
+    const iconImg = card.querySelector('img[src*="/doorSensor/"]');
     if (iconImg) {
       iconImg.src = `/img/sensors/doorSensor/${iconFile}`;
     }
-  });
-
-  document.querySelectorAll('[data-door-state-val]').forEach(valSpan => {
-    valSpan.textContent = `= ${statusLabel}`;
+    const statusValue = card.querySelector('[data-door-state-val]');
+    if (statusValue) {
+      statusValue.textContent = `= ${statusLabel}`;
+    }
   });
 }
 
@@ -83,9 +103,7 @@ function Alarm() {
     doorStatus = 2;
     alarmActive = true;
     console.log('Alarm triggered');
-    updateDoorUi(2);
     pushDoorAlarmState(2);
-    refreshDashboardData();
     return true;
   }
 
@@ -116,9 +134,7 @@ function setDoorStatus(newStatus) {
     }
     doorStatus = 0;
     TimerStop();
-    updateDoorUi(0);
     pushDoorAlarmState(0);
-    refreshDashboardData();
     return;
   }
 
@@ -129,10 +145,8 @@ function setDoorStatus(newStatus) {
 
     if (doorStatus !== 1) {
       doorStatus = 1;
-      updateDoorUi(1);
       startAlarmTimer();
       pushDoorAlarmState(1);
-      refreshDashboardData();
     }
     return;
   }
@@ -140,8 +154,6 @@ function setDoorStatus(newStatus) {
   if (nextStatus === 2) {
     doorStatus = 2;
     alarmActive = true;
-    updateDoorUi(2);
-    refreshDashboardData();
   }
 }
 
@@ -171,6 +183,7 @@ async function refreshDoorState() {
 
 document.addEventListener('DOMContentLoaded', () => {
   setDoorStatus(initialDoorState);
+  updateDoorCards();
   setInterval(refreshDoorState, 2000);
   setInterval(refreshDashboardData, 2000);
 });
@@ -182,11 +195,12 @@ async function refreshDashboardData() {
 
   dashboardRefreshInProgress = true;
   try {
-    const response = await fetch(`/dashboard/data?door_status=${encodeURIComponent(doorStatus)}&_=${Date.now()}`, { cache: 'no-store' });
+    const response = await fetch(`/dashboard/data?_=${Date.now()}`, { cache: 'no-store' });
     if (!response.ok) {
       throw new Error(`Dashboard refresh failed with status ${response.status}`);
     }
     document.getElementById('dashboard-data').innerHTML = await response.text();
+    updateDoorCards();
   } catch (error) {
     console.error('Failed to refresh dashboard data:', error);
   } finally {

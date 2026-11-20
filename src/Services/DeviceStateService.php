@@ -10,23 +10,7 @@ use App\Services\DownlinkService;
 
 class DeviceStateService {
     public function getDoorState() {
-        $latestActivity = DoorSensor::getLatestActivity();
-
-        if (!$latestActivity || empty($latestActivity['data'])) {
-            return 0;
-        }
-
-        $data = json_decode($latestActivity['data'], true);
-
-        if (!is_array($data) || !isset($data['DOOR_OPEN_STATUS'])) {
-            return 0;
-        }
-
-        if ((int) $data['DOOR_OPEN_STATUS'] === 0) {
-            return 0;
-        }
-
-        return 1;
+        return (new DoorSensor())->getDoorState();
     }
 
     public function streamDoorState(DeviceStateService $service) {
