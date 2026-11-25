@@ -9,6 +9,8 @@ use App\Models\DeviceModels\Busylight;
 use App\Services\DownlinkService;
 
 class DeviceStateService {
+    private const DEFAULT_DOOR_ALARM_SECONDS = 10;
+
     public function getDoorState() {
         $latestActivity = DoorSensor::getLatestActivity();
 
@@ -100,5 +102,34 @@ class DeviceStateService {
 
         $bl->updateCurrentColor($p[0], $p[1], $p[2], (int) $doorStatus);
         return 'success';
+    }
+
+    public function getDoorAlarmDelaySeconds(): int {
+        // Keep door behavior stable: if no threshold is configured, use the current 10s default.
+        $db = \App\Database\DBConn::getInstance();
+        $sql = "
+            SELECT warning_max
+            FROM sensor_threshold_setting
+            WHERE device_ID = 5
+              AND metric IN ('DOOR_OPEN_SECONDS', 'LAST_DOOR_OPEN_DURATION')
+              AND is_enabled = 1
+            ORDER BY metric = 'DOOR_OPEN_SECONDS' DESC
+            LIMIT 1
+        ";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute();
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+        if (!$row || !isset($row['warning_max']) || !is_numeric($row['warning_max'])) {
+            return self::DEFAULT_DOOR_ALARM_SECONDS;
+        }
+
+        $seconds = (int) round((float) $row['warning_max']);
+        if ($seconds < 1 || $seconds > 3600) {
+            return self::DEFAULT_DOOR_ALARM_SECONDS;
+        }
+
+        return $seconds;
     }
 } 

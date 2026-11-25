@@ -9,6 +9,8 @@ $router->get('/dashboard', DashboardController::class, 'index');
 $router->get('/dashboard/data', DashboardController::class, 'dashboardData');
 $router->get('/api/door-state', DashboardController::class, 'doorState');
 $router->post('/api/door-alarm', DashboardController::class, 'doorAlarm');
+$router->get('/api/sensor-thresholds', DashboardController::class, 'getSensorThresholdSettings');
+$router->post('/api/sensor-thresholds', DashboardController::class, 'saveSensorThresholdSettings');
 
 // API ROUTES
 $router->get('/api/status', WebhookController::class, 'status');

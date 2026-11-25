@@ -44,4 +44,21 @@ ALTER TABLE `sensor_threshold_setting`
 ALTER TABLE `sensor_threshold_setting`
   ADD CONSTRAINT `fk_sensor_threshold_device` FOREIGN KEY (`device_ID`) REFERENCES `device` (`ID`) ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- --------------------------------------------------------
+
+--
+-- Gegevens worden geëxporteerd voor tabel `sensor_threshold_setting`
+--
+-- Standaarddrempels (overgenomen uit de eerdere sensor-instellingen):
+--   geluid:          la        80 / 90 dB
+--   luchtkwaliteit:  co2       1000 / 1400 ppm, humidity 30-70 / 20-80 %
+--   temperatuur:     TempC_SHT 18-27 / 14-32 C
+--
+
+INSERT INTO `sensor_threshold_setting` (`device_ID`, `metric`, `warning_min`, `warning_max`, `error_min`, `error_max`, `is_enabled`) VALUES
+(2, 'TempC_SHT', 18.00, 27.00, 14.00, 32.00, 1),
+(3, 'la', NULL, 80.00, NULL, 90.00, 1),
+(4, 'co2', NULL, 1000.00, NULL, 1400.00, 1),
+(4, 'humidity', 30.00, 70.00, 20.00, 80.00, 1);
+
 COMMIT;

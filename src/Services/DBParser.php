@@ -14,10 +14,12 @@ use App\Models\DeviceModels\IndoorAmbienceMonitoringSensor;
 class DBParser {
     public $definer;
     private $pdo;
+    private $thresholdSettingService;
 
     public function __construct() {
         $this->pdo = DBConn::getInstance();
         $this->definer = new Definer();
+        $this->thresholdSettingService = new SensorThresholdSettingService();
     }
 
     public function parseDataToDB($ttn_id, $json) {
@@ -50,14 +52,85 @@ class DBParser {
                     $card = $this->getSensorType($dev["deviceID"], json_decode($activity["data"]));
 
                     if ($card) {
+                        $deviceDbId = isset($dev['ID']) ? (int) $dev['ID'] : 0;
                         $card->device_id = $dev["deviceID"];
-                        $card->status = "goed";
+                        $card->device_db_id = $deviceDbId;
+                        $card->status = $this->resolveCardStatus($card, $deviceDbId);
                         array_push($card_info, $card);
                     }
                 }
             }
         }
         return $card_info;
+    }
+
+    private function resolveCardStatus($card, int $deviceDbId): string {
+        if ($deviceDbId <= 0) {
+            return 'good';
+        }
+
+        $settings = $this->thresholdSettingService->getByDeviceId($deviceDbId);
+        if (empty($settings)) {
+            return 'good';
+        }
+
+        $hasWarning = false;
+        foreach ($settings as $setting) {
+            if ((int) ($setting['is_enabled'] ?? 0) !== 1) {
+                continue;
+            }
+
+            $metric = (string) ($setting['metric'] ?? '');
+            if ($metric === '' || !property_exists($card, $metric)) {
+                continue;
+            }
+
+            $value = $card->{$metric};
+            if (!is_numeric($value)) {
+                continue;
+            }
+
+            $numericValue = (float) $value;
+
+            $errorMin = $this->toNullableFloat($setting['error_min'] ?? null);
+            $errorMax = $this->toNullableFloat($setting['error_max'] ?? null);
+            $warningMin = $this->toNullableFloat($setting['warning_min'] ?? null);
+            $warningMax = $this->toNullableFloat($setting['warning_max'] ?? null);
+
+            if ($this->isOutsideBounds($numericValue, $errorMin, $errorMax)) {
+                return 'error';
+            }
+
+            if ($this->isOutsideBounds($numericValue, $warningMin, $warningMax)) {
+                $hasWarning = true;
+            }
+        }
+
+        return $hasWarning ? 'warning' : 'good';
+    }
+
+    private function toNullableFloat($value): ?float {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return is_numeric($value) ? (float) $value : null;
+    }
+
+    private function isOutsideBounds(float $value, ?float $min, ?float $max): bool {
+        if ($min === null && $max === null) {
+            return false;
+        }
+
+        if ($min !== null && $value < $min) {
+            return true;
+        }
+
+        if ($max !== null && $value > $max) {
+            return true;
+        }
+
+        return false;
     }
 
     private function getOrCreateDevice($ttn_id) {

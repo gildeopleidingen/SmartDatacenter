@@ -67,9 +67,9 @@ class Definer{
     }
 
     public function status_color_and_label($logStatus) {
-        switch (strtolower($logStatus)) {
-            case 'warning': return ['#ff2b2b', 'Warning'];
-            case 'error': return ['#ffd300', 'Error'];
+        switch (strtolower((string) $logStatus)) {
+            case 'warning': return ['#ff8800', 'Warning'];
+            case 'error': return ['#ff2b2b', 'Error'];
             default: return ['#22c55e', 'Operational'];
         }
     }
@@ -101,7 +101,7 @@ class Definer{
 
      public function getDevices(): array{
         $devices = $this->pdo->query("
-            SELECT d.deviceID, d.type_ID
+            SELECT d.ID, d.deviceID, d.type_ID
             FROM device d
             ORDER BY d.ID
         ")->fetchAll(PDO::FETCH_ASSOC);
@@ -169,7 +169,7 @@ class Definer{
             return '<img src="/img/sensors/doorSensor/' . $doorIcon . '" width="128" class="block max-w-full h-auto ml-auto">';
         }
 
-        if (in_array($status, ['Warning', 'Error'])) {
+        if (in_array(strtolower((string) $status), ['warning', 'error'], true)) {
             $stateName = $status;
         } else {
             $stateName = match ($sensorType) {
