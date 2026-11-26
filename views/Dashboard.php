@@ -73,6 +73,9 @@ const thresholdMetricConfig = {
     { metric: 'la', label: 'Huidig (dB)' },
     { metric: 'lamax', label: 'Hoogste (dB)' }
   ],
+  doorSensor: [
+    { metric: 'DOOR_OPEN_SECONDS', label: 'Alarm na (seconden) — Warning max' }
+  ],
   indoorAmbienceMonitoringSensor: [
     { metric: 'co2', label: 'CO2 (ppm)' },
     { metric: 'humidity', label: 'Humidity (%)' },

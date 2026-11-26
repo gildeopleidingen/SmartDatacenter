@@ -6,6 +6,11 @@ use PDO;
 use InvalidArgumentException;
 
 class SensorThresholdSettingService {
+    private const DOOR_DELAY_METRIC = 'DOOR_OPEN_SECONDS';
+    private const DEFAULT_DOOR_DELAY_SECONDS = 10.0;
+    private const MIN_DOOR_DELAY_SECONDS = 1;
+    private const MAX_DOOR_DELAY_SECONDS = 3600;
+
     private $pdo;
 
     public function __construct() {
@@ -63,6 +68,14 @@ class SensorThresholdSettingService {
             $errorMin = $this->normalizeNumber($row['error_min'] ?? null);
             $errorMax = $this->normalizeNumber($row['error_max'] ?? null);
             $isEnabled = $this->normalizeBooleanToInt($row['is_enabled'] ?? 1);
+
+            if ($metric === self::DOOR_DELAY_METRIC) {
+                // Door "threshold" is a single delay in seconds, not a min/max bound.
+                $warningMin = null;
+                $warningMax = $this->normalizeDoorDelay($warningMax);
+                $errorMin = null;
+                $errorMax = null;
+            }
 
             $this->assertRangeOrder($warningMin, $warningMax, 'warning');
             $this->assertRangeOrder($errorMin, $errorMax, 'error');
@@ -148,6 +161,17 @@ class SensorThresholdSettingService {
         if ($min !== null && $max !== null && $min > $max) {
             throw new InvalidArgumentException($label . '_min cannot be greater than ' . $label . '_max');
         }
+    }
+
+    private function normalizeDoorDelay(?float $seconds): float {
+        if ($seconds === null) {
+            return self::DEFAULT_DOOR_DELAY_SECONDS;
+        }
+
+        return (float) max(
+            self::MIN_DOOR_DELAY_SECONDS,
+            min(self::MAX_DOOR_DELAY_SECONDS, (int) round($seconds))
+        );
     }
 
     private function formatNullableDecimal(?float $value): ?string {
