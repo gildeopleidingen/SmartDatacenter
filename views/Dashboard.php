@@ -46,6 +46,16 @@ const doorColors = <?= json_encode([
   'openTooLong' => \App\Enums\Color::Red->value,
 ], JSON_THROW_ON_ERROR) ?>;
 
+function formatDoorOpenTime(milliseconds) {
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return minutes > 0
+    ? `${minutes}m ${String(seconds).padStart(2, '0')}s`
+    : `${seconds} s`;
+}
+
 function updateDoorCards() {
   document.querySelectorAll('[data-door-card]').forEach(card => {
     const deviceId = card.dataset.deviceId;
@@ -80,6 +90,14 @@ function updateDoorCards() {
     const statusValue = card.querySelector('[data-door-state-val]');
     if (statusValue) {
       statusValue.textContent = `= ${statusLabel}`;
+    }
+
+    const timerValue = card.querySelector('[data-door-open-timer]');
+    if (timerValue) {
+      const elapsed = sensorState === 0
+        ? 0
+        : Date.now() - (doorOpenSince.get(deviceId) ?? Date.now());
+      timerValue.textContent = `= ${formatDoorOpenTime(elapsed)}`;
     }
   });
 }
@@ -185,7 +203,8 @@ document.addEventListener('DOMContentLoaded', () => {
   setDoorStatus(initialDoorState);
   updateDoorCards();
   setInterval(refreshDoorState, 2000);
-  setInterval(refreshDashboardData, 2000);
+  setInterval(refreshDashboardData, 1000);
+  setInterval(updateDoorCards, 1000);
 });
 
 async function refreshDashboardData() {
