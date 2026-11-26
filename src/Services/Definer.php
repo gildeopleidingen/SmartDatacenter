@@ -25,7 +25,7 @@ class Definer{
             'DOOR_OPEN_STATUS' => 'Door State',
             'BAT_V' => 'Battery Voltage (V)',
             'DOOR_OPEN_TIMES' => 'Times Opened',
-            'LAST_DOOR_OPEN_DURATION' => 'Last Open Duration (s)',
+            'LAST_DOOR_OPEN_DURATION' => 'Door Open Timer',
             'ALARM' => 'Alarm',
             'MOD' => 'Mode',
 

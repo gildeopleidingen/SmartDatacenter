@@ -8,7 +8,11 @@
             ?>
             <li class="grid grid-cols-2 gap-1 w-full">
                 <span class="text-gray-300 text-right break-all text-xs"><?= htmlspecialchars($definer->getLabels($key), ENT_QUOTES, 'UTF-8') ?></span>
-                <span class="font-medium break-all text-xs" <?= $key === 'DOOR_OPEN_STATUS' ? 'data-door-state-val' : '' ?>>= <?= htmlspecialchars($displayValue, ENT_QUOTES, 'UTF-8') ?></span>
+                <?php if ($key === 'LAST_DOOR_OPEN_DURATION'): ?>
+                    <span class="font-medium break-all text-xs" data-door-open-timer>= 0 s</span>
+                <?php else: ?>
+                    <span class="font-medium break-all text-xs" <?= $key === 'DOOR_OPEN_STATUS' ? 'data-door-state-val' : '' ?>>= <?= htmlspecialchars($displayValue, ENT_QUOTES, 'UTF-8') ?></span>
+                <?php endif; ?>
             </li>
         <?php endforeach; ?>
     </ul>
